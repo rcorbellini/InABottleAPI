@@ -4,7 +4,14 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.ApplicationRunner;
+import org.springframework.amqp.core.Binding;
+import org.springframework.amqp.core.BindingBuilder;
+import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.core.TopicExchange;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.amqp.rabbit.connection.ConnectionFactory;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
@@ -13,13 +20,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.repository.ReactiveMongoRepository;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
+import org.springframework.stereotype.Service;
 
-import java.util.Set;
 import java.util.UUID;
 
 @EnableEurekaClient
@@ -31,6 +33,35 @@ class PointServiceApplication {
     public static void main(String[] args) {
         SpringApplication.run(PointServiceApplication.class, args);
     }
+
+    @Bean
+    TopicExchange exchange() {
+        System.out.println("Criando TopicExchange: ");
+        return new TopicExchange("inabottle-exchange");
+    }
+
+    @Bean
+    Queue queue() {
+        return new Queue("points-queue", false);
+    }
+
+    @Bean
+    Binding binding(Queue queue, TopicExchange exchange) {
+        System.out.println("Criando Biding: ");
+        return BindingBuilder.bind(queue).to(exchange).with("points.#");
+    }
+
+    @Bean
+    public RabbitTemplate rabbitTemplate(final ConnectionFactory connectionFactory) {
+        final var rabbitTemplate = new RabbitTemplate(connectionFactory);
+        rabbitTemplate.setMessageConverter(producerJackson2MessageConverter());
+        return rabbitTemplate;
+    }
+
+    @Bean
+    public Jackson2JsonMessageConverter producerJackson2MessageConverter() {
+        return new Jackson2JsonMessageConverter();
+    }
 }
 
 @Document
@@ -41,9 +72,11 @@ class PointsHistory {
     @Id
     private UUID selector;
     private String createdBy;
-    private String source;
+    private UUID idSource;
+    private String typeSource;
     private Integer amount;
 }
+
 
 @Document
 @Data
@@ -57,41 +90,19 @@ class UserPoints {
 interface PointsHistoryRepository extends ReactiveMongoRepository<PointsHistory, UUID> {
 }
 
-interface UserPointsRepository extends ReactiveMongoRepository<UserPoints, UUID> {
-}
+@Service
+class DirectMessageListener {
 
-@RestController
-class UserPointsController {
+    private final PointsHistoryRepository pointsHistoryRepository;
 
-    private UserPointsRepository userPointsRepository;
-
-    public UserPointsController(UserPointsRepository userPointsRepository) {
-        this.userPointsRepository = userPointsRepository;
+    public DirectMessageListener(PointsHistoryRepository pointsHistoryRepository) {
+        System.out.println("Criando consumer: ");
+        this.pointsHistoryRepository = pointsHistoryRepository;
     }
 
-    @PostMapping("/point")
-    @ResponseStatus(HttpStatus.CREATED)
-    public Mono<UserPoints> add(@RequestBody UserPoints userPoints) {
-        return userPointsRepository.save(userPoints);
-    }
-
-    @GetMapping("/point")
-    public Flux<UserPoints> getMessages() {
-        return userPointsRepository.findAll();
-    }
-
-
-    @GetMapping("/point/{id}")
-    public Mono<UserPoints> getMessage(@PathVariable("id") UUID id) {
-        return userPointsRepository.findById(id);
-    }
-
-    @DeleteMapping("/point/{id}")
-    public Mono<ResponseEntity<Void>> deleteMessage(@PathVariable("id") UUID id) {
-        return userPointsRepository.findById(id)
-                .flatMap(userPoints -> userPointsRepository.delete(userPoints)
-                        .then(Mono.just(new ResponseEntity<Void>(HttpStatus.OK)))
-                )
-                .defaultIfEmpty(new ResponseEntity<>(HttpStatus.NOT_FOUND));
+    @RabbitListener(queues = "points-queue")
+    public void readMessage(PointsHistory points) {
+        pointsHistoryRepository.save(points).subscribe();
     }
 }
+

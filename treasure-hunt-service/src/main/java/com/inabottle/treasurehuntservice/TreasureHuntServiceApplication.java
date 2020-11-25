@@ -94,6 +94,19 @@ class DirectMessage implements Serializable {
     private UUID huntId;
 }
 
+@Document
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+class PointsHistory {
+    @Id
+    private UUID selector;
+    private String createdBy;
+    private UUID idSource;
+    final private String typeSource = "Treasure";
+    private Integer amount;
+}
+
 interface TreasureHuntRepository extends ReactiveMongoRepository<TreasureHunt, UUID> {
 }
 
@@ -106,11 +119,28 @@ class DirectMessageProducer {
         this.rabbitTemplate = rabbitTemplate;
     }
 
-    public TreasureHunt sendDirectMessage(TreasureHunt treasureHunt) {
+    public void sendDirectMessage(TreasureHunt treasureHunt) {
         if (treasureHunt.getMessages() != null && !treasureHunt.getMessages().isEmpty()) {
+            treasureHunt.getMessages().forEach(message -> message.setHuntId(treasureHunt.getSelector()));
             rabbitTemplate.convertAndSend("inabottle-exchange", "direct.message.save", treasureHunt.getMessages());
         }
-        return treasureHunt;
+    }
+}
+
+@Component()
+class PointsProducer {
+
+    private final RabbitTemplate rabbitTemplate;
+
+    public PointsProducer(RabbitTemplate rabbitTemplate) {
+        this.rabbitTemplate = rabbitTemplate;
+    }
+
+    public void sendPoints(TreasureHunt treasureHunt) {
+        if (treasureHunt.getExtraPoints() != null) {
+            final PointsHistory points = new PointsHistory(UUID.randomUUID(), treasureHunt.getCreatedBy(), treasureHunt.getSelector(), treasureHunt.getExtraPoints());
+            rabbitTemplate.convertAndSend("inabottle-exchange", "points.add", points);
+        }
     }
 }
 
@@ -119,16 +149,24 @@ class TreasureHuntController {
 
     private TreasureHuntRepository treasureHuntRepository;
     private DirectMessageProducer directMessageProducer;
+    private PointsProducer pointsProducer;
 
-    public TreasureHuntController(TreasureHuntRepository treasureHuntRepository, DirectMessageProducer directMessageProducer) {
+    public TreasureHuntController(TreasureHuntRepository treasureHuntRepository, DirectMessageProducer directMessageProducer, PointsProducer pointsProducer) {
         this.treasureHuntRepository = treasureHuntRepository;
         this.directMessageProducer = directMessageProducer;
+        this.pointsProducer = pointsProducer;
     }
 
     @PostMapping("/treasure")
     @ResponseStatus(HttpStatus.CREATED)
     public Mono<TreasureHunt> addMessage(@RequestBody TreasureHunt treasureHunt) {
-        return treasureHuntRepository.save(treasureHunt).map(treasureHuntSaved -> directMessageProducer.sendDirectMessage(treasureHuntSaved));
+        return treasureHuntRepository.save(treasureHunt).then(producersOnSave(treasureHunt));
+    }
+
+    private Mono<TreasureHunt> producersOnSave(TreasureHunt treasureHunt) {
+        directMessageProducer.sendDirectMessage(treasureHunt);
+        pointsProducer.sendPoints(treasureHunt);
+        return Mono.just(treasureHunt);
     }
 
     @GetMapping("/treasure")

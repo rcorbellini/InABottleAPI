@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/api-gateway/api-gateway.iml" filepath="$PROJECT_DIR$/api-gateway/api-gateway.iml" />
+      <module fileurl="file://$PROJECT_DIR$/direct-message-service/direct-message-service.iml" filepath="$PROJECT_DIR$/direct-message-service/direct-message-service.iml" />
+      <module fileurl="file://$PROJECT_DIR$/discovery-service/discovery-service.iml" filepath="$PROJECT_DIR$/discovery-service/discovery-service.iml" />
+      <module fileurl="file://$PROJECT_DIR$/hub-service/hub-service.iml" filepath="$PROJECT_DIR$/hub-service/hub-service.iml" />
+      <module fileurl="file://$PROJECT_DIR$/point-service/point-service.iml" filepath="$PROJECT_DIR$/point-service/point-service.iml" />
+      <module fileurl="file://$PROJECT_DIR$/reactive-parent.iml" filepath="$PROJECT_DIR$/reactive-parent.iml" />
+      <module fileurl="file://$PROJECT_DIR$/treasure-hunt-service/treasure-hunt-service.iml" filepath="$PROJECT_DIR$/treasure-hunt-service/treasure-hunt-service.iml" />
+    </modules>
+  </component>
+</project>
