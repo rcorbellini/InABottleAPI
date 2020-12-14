@@ -10,7 +10,7 @@
     <modules>
         <module>discovery-service</module>
         <module>direct-message-service</module>
-        <module>car-service</module>
+        <module>user-service</module>
         <module>hub-service</module>
         <module>api-gateway</module>
         <module>point-service</module>

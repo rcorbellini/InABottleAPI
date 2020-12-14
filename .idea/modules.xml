@@ -9,6 +9,7 @@
       <module fileurl="file://$PROJECT_DIR$/point-service/point-service.iml" filepath="$PROJECT_DIR$/point-service/point-service.iml" />
       <module fileurl="file://$PROJECT_DIR$/reactive-parent.iml" filepath="$PROJECT_DIR$/reactive-parent.iml" />
       <module fileurl="file://$PROJECT_DIR$/treasure-hunt-service/treasure-hunt-service.iml" filepath="$PROJECT_DIR$/treasure-hunt-service/treasure-hunt-service.iml" />
+      <module fileurl="file://$PROJECT_DIR$/user-service/user-service.iml" filepath="$PROJECT_DIR$/user-service/user-service.iml" />
     </modules>
   </component>
 </project>

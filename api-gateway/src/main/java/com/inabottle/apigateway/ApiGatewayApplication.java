@@ -51,6 +51,16 @@ public class ApiGatewayApplication {
                         .uri("lb://treasure-hunt-service/"))
 
 
+                .route("user-service", r -> r.path("/user")
+                        .filters(f -> f.hystrix(c -> c.setName("userFallback")
+                                .setFallbackUri("forward:/empty-fallback")))
+                        .uri("lb://user-service"))
+                .route("user-service-id", r -> r.path("/user/**")
+                        .filters(f -> f.hystrix(c -> c.setName("userFallback").setFallbackUri("forward:/empty-fallback"))
+                                .rewritePath("user-service/(?<segment>.*)", "user-service/${segment}"))
+                        .uri("lb://user-service/"))
+
+
                 .build();
     }
 
